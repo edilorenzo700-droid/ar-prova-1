@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>MathAR — Parabola 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blue:           #4A9EFF;
+      --blue-dim:       rgba(74, 158, 255, 0.18);
+      --blue-border:    rgba(74, 158, 255, 0.35);
+      --blue-glow:      rgba(74, 158, 255, 0.12);
+      --orange:         #FF9F40;
+      --orange-dim:     rgba(255, 159,  64, 0.18);
+      --orange-border:  rgba(255, 159,  64, 0.35);
+      --green:          #30D158;
+      --green-border:   rgba( 48, 209,  88, 0.35);
+
+      --glass-bg:       rgba(10, 20, 50, 0.75);
+      --glass-light:    rgba(255, 255, 255, 0.07);
+      --glass-border:   rgba(255, 255, 255, 0.13);
+
+      --text-primary:   rgba(255, 255, 255, 1.00);
+      --text-dim:       rgba(255, 255, 255, 0.52);
+      --text-dimmer:    rgba(255, 255, 255, 0.30);
+
+      --safe-top:       env(safe-area-inset-top,    0px);
+      --safe-bottom:    env(safe-area-inset-bottom, 0px);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow: hidden;
+      height: 100dvh;
+      width: 100vw;
+      position: fixed;
+      background: #060d1f;
+    }
+
+    #canvas {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+    }
+
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding-top: calc(var(--safe-top) + 0.6rem);
+      padding-bottom: 0.75rem;
+      padding-left: 1rem; padding-right: 1rem;
+      background: var(--glass-bg);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border-bottom: 1px solid var(--glass-border);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem;
+      border-radius: 0;
+    }
+
+    .btn-back {
+      font-size: 0.82rem; font-weight: 500; color: var(--blue);
+      text-decoration: none;
+      background: var(--blue-dim); border: 1px solid var(--blue-border);
+      border-radius: 20px; padding: 0.38rem 0.85rem;
+      flex-shrink: 0; transition: opacity 0.18s;
+    }
+    .btn-back:active { opacity: 0.65; }
+
+    .topbar-center { flex: 1; text-align: center; }
+    .topbar-title { font-size: 0.88rem; font-weight: 600; color: #fff; }
+    .topbar-sub   { font-size: 0.6rem; color: var(--text-dim);
+                    letter-spacing: 0.04em; margin-top: 0.1rem; }
+
+    .demo-chip {
+      font-size: 0.58rem; font-weight: 700; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--blue);
+      background: var(--blue-dim); border: 1px solid var(--blue-border);
+      border-radius: 20px; padding: 0.28rem 0.7rem; flex-shrink: 0;
+    }
+
+    #info-card {
+      position: fixed;
+      top: calc(var(--safe-top) + 4.5rem);
+      right: 1rem; z-index: 100;
+      background: rgba(255,255,255,0.09);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border);
+      border-radius: 18px; padding: 1rem 1.1rem; width: 172px;
+    }
+    #ic-sub {
+      font-size: 0.56rem; font-weight: 700; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--orange); margin-bottom: 0.28rem;
+    }
+    #ic-titolo {
+      font-size: 0.88rem; font-weight: 700; color: #fff;
+      margin-bottom: 0.4rem; line-height: 1.3;
+    }
+    #ic-formula {
+      background: rgba(74,158,255,0.26);
+      border: 1px solid rgba(74,158,255,0.45);
+      border-radius: 8px; padding: 0.42rem;
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 0.82rem; text-align: center;
+      margin-bottom: 0.5rem; color: #fff;
+    }
+    #ic-desc {
+      font-size: 0.65rem; color: rgba(255,255,255,0.48); line-height: 1.55;
+    }
+
+    #physics-panels {
+      position: fixed;
+      top: calc(var(--safe-top) + 4.5rem);
+      left: 50%; transform: translateX(-50%);
+      z-index: 100;
+      display: none;
+      align-items: center; gap: 0.5rem;
+    }
+    .phy-card {
+      background: rgba(6,13,31,0.94);
+      border-radius: 12px; padding: 0.75rem 0.9rem;
+      text-align: center; min-width: 140px;
+    }
+    .phy-card--math { border: 1px solid rgba(74,158,255,0.35); }
+    .phy-card--phys { border: 1px solid rgba(48,209,88,0.35); }
+    .phy-label {
+      font-size: 0.56rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; margin-bottom: 0.3rem;
+    }
+    .phy-card--math .phy-label { color: #93C5FD; }
+    .phy-card--phys .phy-label { color: #6EE7B7; }
+    .phy-formula {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 0.92rem; color: #fff; margin-bottom: 0.2rem;
+    }
+    .phy-sub { font-size: 0.62rem; color: rgba(255,255,255,0.38); }
+    .phy-eq {
+      background: rgba(6,13,31,0.92); border: 1px solid var(--glass-border);
+      border-radius: 50%; width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+
+    #hint-drag {
+      position: fixed;
+      top: calc(var(--safe-top) + 4.5rem);
+      left: 1rem; z-index: 100;
+      background: rgba(6,13,31,0.82);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px; padding: 0.55rem 0.9rem;
+      font-size: 0.7rem; color: rgba(255,255,255,0.45);
+      pointer-events: none;
+    }
+
+    #phase-ui {
+      position: fixed;
+      bottom: calc(var(--safe-bottom) + 1rem);
+      left: 50%; transform: translateX(-50%);
+      z-index: 100;
+      display: flex; flex-direction: column; align-items: center; gap: 0.65rem;
+      width: calc(100% - 2rem); max-width: 360px;
+    }
+    #ph-label {
+      font-size: 0.72rem; font-weight: 500;
+      color: rgba(255,255,255,0.45); letter-spacing: 0.04em;
+      text-align: center;
+    }
+    #phase-dots { display: flex; gap: 0.45rem; }
+    .phase-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      transition: all 0.3s ease;
+      background: rgba(255,255,255,0.18);
+    }
+    #next-btn {
+      width: 100%;
+      background: rgba(74,158,255,0.62);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(74,158,255,0.5);
+      border-radius: 14px; padding: 0.88rem;
+      color: #fff; font-size: 0.9rem; font-weight: 600;
+      font-family: 'Inter', sans-serif; cursor: pointer;
+      transition: all 0.2s; letter-spacing: 0.01em;
+    }
+    #next-btn:active { transform: scale(0.97); }
+  </style>
+</head>
+
+<body>
+
+  <canvas id="canvas"></canvas>
+
+  <div class="topbar">
+    <a href="../index.html" class="btn-back">← Indietro</a>
+    <div class="topbar-center">
+      <div class="topbar-title">Coniche — La Parabola</div>
+      <div class="topbar-sub">Trascina per ruotare · 4 fasi narrative</div>
+    </div>
+    <div class="demo-chip" style="color:var(--orange);background:var(--orange-dim);border-color:var(--orange-border);">Demo 02</div>
+  </div>
+
+  <div id="hint-drag">☝️ Trascina per ruotare</div>
+
+  <div id="info-card">
+    <div id="ic-sub"></div>
+    <div id="ic-titolo"></div>
+    <div id="ic-formula"></div>
+    <div id="ic-desc"></div>
+  </div>
+
+  <div id="physics-panels">
+    <div class="phy-card phy-card--math">
+      <div class="phy-label">Matematica</div>
+      <div class="phy-formula">y = ax² + bx + c</div>
+      <div class="phy-sub">parabola geometrica</div>
+    </div>
+    <div class="phy-eq">=</div>
+    <div class="phy-card phy-card--phys">
+      <div class="phy-label">Fisica</div>
+      <div class="phy-formula">y = v₀t − ½gt²</div>
+      <div class="phy-sub">moto del proiettile</div>
+    </div>
+  </div>
+
+  <div id="phase-ui">
+    <div id="ph-label"></div>
+    <div id="phase-dots">
+      <div class="phase-dot" id="dot-0"></div>
+      <div class="phase-dot" id="dot-1"></div>
+      <div class="phase-dot" id="dot-2"></div>
+      <div class="phase-dot" id="dot-3"></div>
+    </div>
+    <button id="next-btn" onclick="nextFase()"></button>
+  </div>
+
+  <script>
+  'use strict';
+
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      this.beginPath();
+      this.moveTo(x + r, y);
+      this.lineTo(x + w - r, y);   this.arcTo(x+w, y,   x+w, y+r,   r);
+      this.lineTo(x + w, y + h-r); this.arcTo(x+w, y+h, x+w-r, y+h, r);
+      this.lineTo(x + r, y + h);   this.arcTo(x,   y+h, x, y+h-r,   r);
+      this.lineTo(x, y + r);       this.arcTo(x,   y,   x+r, y,     r);
+      this.closePath();
+    };
+  }
+
+  const canvas = document.getElementById('canvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  let rotY = 0.30, rotX = 0.38;
+  let dragging = false, lastX = 0, lastY = 0;
+
+  canvas.addEventListener('touchstart', e => {
+    dragging = true;
+    lastX = e.touches[0].clientX;
+    lastY = e.touches[0].clientY;
+    e.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    rotY += (e.touches[0].clientX - lastX) * 0.013;
+    rotX += (e.touches[0].clientY - lastY) * 0.008;
+    rotX  = Math.max(-0.25, Math.min(0.85, rotX));
+    lastX  = e.touches[0].clientX;
+    lastY  = e.touches[0].clientY;
+    e.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', () => { dragging = false; });
+
+  canvas.addEventListener('mousedown', e => {
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    rotY += (e.clientX - lastX) * 0.011;
+    rotX += (e.clientY - lastY) * 0.007;
+    rotX  = Math.max(-0.25, Math.min(0.85, rotX));
+    lastX  = e.clientX;
+    lastY  = e.clientY;
+  });
+
+  canvas.addEventListener('mouseup',  () => { dragging = false; });
+  canvas.addEventListener('mouseout', () => { dragging = false; });
+
+  function proietta(x, y, z) {
+    const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+    const rx   = x * cosY - z * sinY;
+    const rz   = x * sinY + z * cosY;
+
+    const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+    const ry   = y  * cosX - rz * sinX;
+    const rz2  = y  * sinX + rz * cosX;
+
+    const dz   = rz2 + 4.2;
+    if (dz < 0.05) return null;
+
+    const fov  = Math.min(W, H) * 0.30;
+    return {
+      x: W / 2 + (rx  * fov) / dz,
+      y: H / 2 - (ry  * fov) / dz,
+      s: fov / dz
+    };
+  }
+
+  function ln3(ax, ay, az, bx, by, bz, color, lw) {
+    const pa = proietta(ax, ay, az);
+    const pb = proietta(bx, by, bz);
+    if (!pa || !pb) return;
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = lw;
+    ctx.moveTo(pa.x, pa.y);
+    ctx.lineTo(pb.x, pb.y);
+    ctx.stroke();
+  }
+
+  function cerchio3(cx3, cy3, cz3, r, segs, color, lw) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = lw;
+    let primo = true;
+    for (let i = 0; i <= segs; i++) {
+      const a = (i / segs) * Math.PI * 2;
+      const p = proietta(cx3 + Math.cos(a) * r, cy3, cz3 + Math.sin(a) * r);
+      if (!p) continue;
+      primo ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+      primo = false;
+    }
+    ctx.stroke();
+  }
+
+  function label3(text, x, y, z, color) {
+    const p = proietta(x, y, z);
+    if (!p) return;
+
+    const fs = Math.round(11 * Math.min(p.s, 1.9));
+    ctx.font         = `600 ${fs}px Inter, sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+
+    const tw = ctx.measureText(text).width;
+    ctx.fillStyle = 'rgba(6,13,31,0.90)';
+    ctx.beginPath();
+    ctx.roundRect(p.x - tw/2 - 5, p.y - fs/2 - 3, tw + 10, fs + 6, 4);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    ctx.fillText(text, p.x, p.y);
+
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  const FASI = [
+    {
+      sub:     'GEOMETRIA · CONICHE',
+      titolo:  'Il Cono',
+      formula: 'Superficie di rotazione',
+      desc:    'Il cono ruota attorno al suo asse. Trascinalo per esplorarlo in 3D.',
+      btn:     'Prossimo: Interseca il cono →'
+    },
+    {
+      sub:     'GEOMETRIA · SEZIONI CONICHE',
+      titolo:  'Piano secante',
+      formula: 'Piano ∥ alla generatrice',
+      desc:    'Un piano parallelo a una generatrice del cono produce la parabola.',
+      btn:     'Prossimo: Rivela la parabola →'
+    },
+    {
+      sub:     'ANALISI MATEMATICA',
+      titolo:  'La Parabola',
+      formula: 'y = ax² + bx + c',
+      desc:    'Vertice V, fuoco F e direttrice d definiscono completamente la parabola.',
+      btn:     'Prossimo: Collega alla Fisica →'
+    },
+    {
+      sub:     'MATEMATICA ↔ FISICA',
+      titolo:  'Due discipline, una curva',
+      formula: 'y = v₀t − ½gt²',
+      desc:    'La stessa curva parabolica descrive il moto del proiettile in fisica.',
+      btn:     "↺ Ricomincia dall'inizio"
+    }
+  ];
+
+  let fase = 0, t = 0;
+  let pianoA = 0, parabolaA = 0, fisicaA = 0;
+
+  function disegnaGriglia() {
+    ctx.globalAlpha = 0.06;
+    ctx.strokeStyle = '#4466ff';
+    ctx.lineWidth   = 1;
+
+    for (let i = -6; i <= 6; i++) {
+      const a = proietta(i*0.35, -1.4, -2.5);
+      const b = proietta(i*0.35, -1.4,  2.5);
+      const c = proietta(-2.5,   -1.4, i*0.35);
+      const d = proietta( 2.5,   -1.4, i*0.35);
+
+      if (a && b) { ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+      if (c && d) { ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.stroke(); }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function disegnaCono(opacita) {
+    const SEMI_H = 0.70;
+    const R      = 0.65;
+    const SEGS   = 24;
+    const V_TOP  = { x: 0, y:  SEMI_H, z: 0 };
+    const V_BOT  = { x: 0, y: -SEMI_H, z: 0 };
+
+    cerchio3(0,  SEMI_H, 0, R, SEGS, `rgba(74,158,255,${opacita})`,     1.2);
+    cerchio3(0, -SEMI_H, 0, R, SEGS, `rgba(74,158,255,${opacita*0.5})`, 1.0);
+
+    for (let i = 0; i < SEGS; i++) {
+      const ang = (i / SEGS) * Math.PI * 2;
+      const bx  = Math.cos(ang) * R;
+      const bz  = Math.sin(ang) * R;
+
+      ln3( V_TOP.x, V_TOP.y, V_TOP.z,
+           bx,      SEMI_H,  bz,
+           `rgba(74,158,255,${opacita})`, 0.8 );
+
+      ln3( V_BOT.x, V_BOT.y, V_BOT.z,
+           bx,      -SEMI_H,  bz,
+           `rgba(74,158,255,${opacita * 0.45})`, 0.6 );
+    }
+
+    ctx.globalAlpha = opacita * 0.28;
+    ctx.setLineDash([6, 5]);
+    ln3(0, SEMI_H+0.25, 0, 0, -SEMI_H-0.25, 0, 'rgba(255,255,255,0.7)', 1);
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+
+  function disegnaPiano(alpha) {
+    const Y_PIANO = 0.28;
+    const S       = 1.08;
+
+    const verts = [
+      proietta(-S, Y_PIANO, -S), proietta( S, Y_PIANO, -S),
+      proietta( S, Y_PIANO,  S), proietta(-S, Y_PIANO,  S)
+    ];
+    if (verts.some(p => !p)) return;
+
+    ctx.globalAlpha = 0.16 * alpha;
+    ctx.fillStyle   = '#FF9F40';
+    ctx.beginPath();
+    ctx.moveTo(verts[0].x, verts[0].y);
+    verts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.globalAlpha = 0.75 * alpha;
+    ctx.strokeStyle = '#FF9F40';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(verts[0].x, verts[0].y);
+    ctx.lineTo(verts[1].x, verts[1].y);
+    ctx.lineTo(verts[2].x, verts[2].y);
+    ctx.lineTo(verts[3].x, verts[3].y);
+    ctx.closePath();
+    ctx.stroke();
+
+    const R_INT = 0.65 * (0.70 - Y_PIANO) / 0.70;
+    ctx.globalAlpha = alpha;
+    cerchio3(0, Y_PIANO, 0, R_INT, 48, '#FF9F40', 2.5);
+
+    ctx.globalAlpha = 1;
+  }
+
+  function disegnaParabola(alpha) {
+    ctx.globalAlpha = alpha;
+
+    ctx.beginPath();
+    ctx.strokeStyle = '#FF9F40';
+    ctx.lineWidth   = 3;
+    let primo = true;
+    for (let i = 0; i <= 60; i++) {
+      const tx = (i / 60) - 0.5;
+      const px = tx * 1.1;
+      const py = px * px * 2.0;
+      const p  = proietta(px, py, 0);
+      if (!p) continue;
+      primo ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+      primo = false;
+    }
+    ctx.stroke();
+
+    ctx.globalAlpha = alpha * 0.40;
+    ctx.setLineDash([5, 5]);
+    ln3(0, 0, 0, 0, 1.30, 0, 'rgba(255,255,255,0.65)', 1);
+    ctx.setLineDash([]);
+    ctx.globalAlpha = alpha;
+
+    const pV = proietta(0, 0, 0);
+    if (pV) {
+      ctx.beginPath();
+      ctx.arc(pV.x, pV.y, 5 * Math.min(pV.s, 2), 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+      label3('V', 0, 0.02, 0, '#FFFFFF');
+    }
+
+    const pF = proietta(0, 0.125, 0);
+    if (pF) {
+      const pulse = 1 + Math.sin(t * 4) * 0.22;
+      const rf    = 5 * Math.min(pF.s, 2) * pulse;
+      ctx.beginPath();
+      ctx.arc(pF.x, pF.y, rf, 0, Math.PI * 2);
+      ctx.fillStyle = '#FF9F40';
+      ctx.fill();
+
+      ctx.globalAlpha = alpha * 0.28;
+      ctx.beginPath();
+      ctx.arc(pF.x, pF.y, rf * 2.2, 0, Math.PI * 2);
+      ctx.strokeStyle = '#FF9F40';
+      ctx.lineWidth   = 1;
+      ctx.stroke();
+      ctx.globalAlpha = alpha;
+
+      label3('F', 0, 0.145, 0, '#FF9F40');
+    }
+
+    ctx.globalAlpha = alpha * 0.33;
+    ctx.setLineDash([6, 6]);
+    ln3(-1.2, -0.125, 0, 1.2, -0.125, 0, 'rgba(255,255,255,0.62)', 1.2);
+    ctx.setLineDash([]);
+    ctx.globalAlpha = alpha;
+    label3('d', 0.95, -0.125, 0, 'rgba(255,255,255,0.72)');
+
+    ctx.globalAlpha = 1;
+  }
+
+  function disegnaFisica(alpha) {
+    const rotYLocal = rotY + 1.1;
+
+    function proiettaFis(x, y, z) {
+      const cosY = Math.cos(rotYLocal), sinY = Math.sin(rotYLocal);
+      const rx   = x * cosY - z * sinY;
+      const rz   = x * sinY + z * cosY;
+
+      const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+      const ry   = y  * cosX - rz * sinX;
+      const rz2  = y  * sinX + rz * cosX;
+
+      const dz   = rz2 + 4.2;
+      if (dz < 0.05) return null;
+
+      const fov  = Math.min(W, H) * 0.30;
+      return {
+        x: W / 2 + (rx  * fov) / dz,
+        y: H / 2 - (ry  * fov) / dz,
+        s: fov / dz
+      };
+    }
+
+    ctx.globalAlpha = alpha * 0.68;
+    ctx.beginPath();
+    ctx.strokeStyle = '#30D158';
+    ctx.lineWidth   = 2.5;
+    let primo = true;
+    for (let i = 0; i <= 60; i++) {
+      const tx = (i / 60) - 0.5;
+      const px = tx * 1.1;
+      const py = px * px * 2.0;
+      const p  = proiettaFis(px, py, 0);
+      if (!p) continue;
+      primo ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+      primo = false;
+    }
+    ctx.stroke();
+
+    ctx.globalAlpha = alpha * 0.75;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = '600 12px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(110,231,183,0.85)';
+    ctx.fillText('Traiettoria (fisica)', 16, H - 18);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    ctx.globalAlpha = 1;
+  }
+
+  function aggiornaUI() {
+    const f = FASI[fase];
+    document.getElementById('ic-sub').textContent     = f.sub;
+    document.getElementById('ic-titolo').textContent  = f.titolo;
+    document.getElementById('ic-formula').textContent = f.formula;
+    document.getElementById('ic-desc').textContent    = f.desc;
+    document.getElementById('ph-label').textContent   = `Fase ${fase + 1} di 4 — ${f.titolo}`;
+    document.getElementById('next-btn').textContent   = f.btn;
+
+    for (let i = 0; i < 4; i++) {
+      const dot = document.getElementById('dot-' + i);
+      dot.style.background =
+        i < fase   ? 'rgba(74,158,255,0.65)' :
+        i === fase ? '#FF9F40' :
+                     'rgba(255,255,255,0.18)';
+      dot.style.transform = i === fase ? 'scale(1.38)' : 'scale(1)';
+    }
+
+    document.getElementById('physics-panels').style.display =
+      fase === 3 ? 'flex' : 'none';
+  }
+
+  function nextFase() {
+    fase = (fase + 1) % 4;
+    if (fase === 0) { pianoA = 0; parabolaA = 0; fisicaA = 0; }
+    aggiornaUI();
+  }
+
+  function render() {
+    requestAnimationFrame(render);
+    t += 0.016;
+    if (!dragging) rotY += 0.007;
+
+    if (fase >= 1) pianoA    = Math.min(1, pianoA    + 0.022);
+    if (fase >= 2) parabolaA = Math.min(1, parabolaA + 0.016);
+    if (fase >= 3) fisicaA   = Math.min(1, fisicaA   + 0.018);
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#0a1428');
+    bg.addColorStop(1, '#040810');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    for (let i = 0; i < 28; i++) {
+      const sx = (Math.sin(i * 127.31 + 0.5) * 0.5 + 0.5) * W;
+      const sy = (Math.cos(i * 89.71  + 1.2) * 0.5 + 0.5) * H * 0.52;
+      const sr = Math.sin(i * 43.17) * 0.4 + 0.6;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    disegnaGriglia();
+
+    const conoA = fase >= 2 ? Math.max(0.08, 0.80 - parabolaA * 0.72) : 0.80;
+    disegnaCono(conoA);
+
+    if (pianoA    > 0) disegnaPiano(pianoA);
+    if (parabolaA > 0) disegnaParabola(parabolaA);
+    if (fisicaA   > 0) disegnaFisica(fisicaA);
+  }
+
+  aggiornaUI();
+  render();
+  </script>
+
+</body>
+</html>
