@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>MathAR — Spazio AR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blue:           #4A9EFF;
+      --blue-dim:       rgba(74, 158, 255, 0.18);
+      --blue-border:    rgba(74, 158, 255, 0.35);
+      --blue-glow:      rgba(74, 158, 255, 0.12);
+      --orange:         #FF9F40;
+      --orange-dim:     rgba(255, 159,  64, 0.18);
+      --orange-border:  rgba(255, 159,  64, 0.35);
+      --green:          #30D158;
+      --green-border:   rgba( 48, 209,  88, 0.35);
+
+      --glass-bg:       rgba(10, 20, 50, 0.75);
+      --glass-light:    rgba(255, 255, 255, 0.07);
+      --glass-border:   rgba(255, 255, 255, 0.13);
+
+      --text-primary:   rgba(255, 255, 255, 1.00);
+      --text-dim:       rgba(255, 255, 255, 0.52);
+      --text-dimmer:    rgba(255, 255, 255, 0.30);
+
+      --safe-top:       env(safe-area-inset-top,    0px);
+      --safe-bottom:    env(safe-area-inset-bottom, 0px);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow: hidden;
+      height: 100dvh;
+      width: 100vw;
+      position: fixed;
+      background: #060d1f;
+    }
+
+    @keyframes float-bob {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-6px); }
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1;    transform: scale(1); }
+      50%       { opacity: 0.35; transform: scale(0.65); }
+    }
+
+    @keyframes ring-expand {
+      0%   { transform: scale(1);   opacity: 0.6; }
+      100% { transform: scale(1.8); opacity: 0;   }
+    }
+
+    #vignette {
+      position: fixed; inset: 0; z-index: 1;
+      background: radial-gradient(ellipse at center,
+        rgba(0,0,0,0) 35%, rgba(0,0,0,0.42) 100%);
+      pointer-events: none;
+    }
+
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding-top: calc(var(--safe-top) + 0.6rem);
+      padding-bottom: 0.75rem;
+      padding-left: 1rem; padding-right: 1rem;
+      background: var(--glass-bg);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border-bottom: 1px solid var(--glass-border);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .btn-back {
+      font-size: 0.82rem; font-weight: 500; color: var(--blue);
+      text-decoration: none;
+      background: var(--blue-dim); border: 1px solid var(--blue-border);
+      border-radius: 20px; padding: 0.38rem 0.85rem;
+      flex-shrink: 0; transition: opacity 0.18s;
+    }
+    .btn-back:active { opacity: 0.65; }
+
+    .topbar-center { flex: 1; text-align: center; }
+    .topbar-title { font-size: 0.88rem; font-weight: 600; color: #fff; }
+    .topbar-sub   { font-size: 0.6rem; color: var(--text-dim);
+                    letter-spacing: 0.04em; margin-top: 0.1rem; }
+
+    .demo-chip {
+      font-size: 0.58rem; font-weight: 700; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--blue);
+      background: var(--blue-dim); border: 1px solid var(--blue-border);
+      border-radius: 20px; padding: 0.28rem 0.7rem; flex-shrink: 0;
+    }
+
+    .ar-pill {
+      position: fixed;
+      top: calc(var(--safe-top) + 4.5rem);
+      left: 50%; transform: translateX(-50%);
+      z-index: 100;
+      display: flex; align-items: center; gap: 0.45rem;
+      background: rgba(10, 30, 20, 0.78);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--green-border);
+      border-radius: 20px; padding: 0.38rem 1rem;
+      pointer-events: none; white-space: nowrap;
+    }
+    .ar-pill-dot {
+      width: 6px; height: 6px; background: var(--green); border-radius: 50%;
+      animation: pulse-dot 2s ease-in-out infinite; display: inline-block;
+    }
+    .ar-pill-text {
+      font-size: 0.7rem; font-weight: 600; color: var(--green);
+      letter-spacing: 0.03em;
+    }
+
+    .ar-float {
+      position: fixed; z-index: 90;
+      display: flex; flex-direction: column; align-items: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .ar-float-box {
+      background: rgba(10, 20, 50, 0.85);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(74, 158, 255, 0.55);
+      border-radius: 10px; padding: 0.42rem 0.92rem;
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 0.95rem; color: #fff; white-space: nowrap;
+      animation: float-bob 3s ease-in-out infinite;
+      box-shadow: 0 0 18px rgba(74,158,255,0.22), 0 4px 14px rgba(0,0,0,0.36);
+    }
+    .ar-float-line {
+      width: 1.5px; height: 30px;
+      background: linear-gradient(to bottom,
+        rgba(74,158,255,0.75), rgba(74,158,255,0));
+    }
+    .ar-float-dot {
+      position: relative;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 10px rgba(74,158,255,0.85);
+    }
+    .ar-float-dot::after {
+      content: '';
+      position: absolute; inset: -6px; border-radius: 50%;
+      border: 1px solid rgba(74,158,255,0.45);
+      animation: ring-expand 2s ease-out infinite;
+    }
+
+    .obj-pill {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-family: 'Inter', sans-serif; font-size: 0.78rem; font-weight: 500;
+      color: #fff;
+      background: var(--glass-bg);
+      backdrop-filter: blur(30px) saturate(160%);
+      -webkit-backdrop-filter: blur(30px) saturate(160%);
+      border: 1px solid var(--glass-border);
+      border-radius: 40px; padding: 0.55rem 1.05rem;
+      cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .obj-pill:active   { transform: scale(0.93); }
+    .obj-pill.active {
+      background: rgba(74,158,255,0.22);
+      border-color: rgba(74,158,255,0.68);
+      box-shadow: 0 0 0 1px rgba(74,158,255,0.18),
+                  0 4px 20px rgba(74,158,255,0.18);
+    }
+
+    #instr-box {
+      position: fixed;
+      bottom: calc(var(--safe-bottom) + 1rem);
+      left: 50%; transform: translateX(-50%);
+      z-index: 100;
+      background: var(--glass-bg);
+      backdrop-filter: blur(30px) saturate(180%);
+      -webkit-backdrop-filter: blur(30px) saturate(180%);
+      border: 1px solid var(--glass-border);
+      border-radius: 18px; padding: 1rem 1.25rem;
+      text-align: center; max-width: 310px;
+      width: calc(100% - 2rem);
+      transition: opacity 0.35s ease;
+    }
+    #instr-box.hidden { opacity: 0; pointer-events: none; }
+    .instr-title { font-size: 0.88rem; font-weight: 600; color: #fff; margin-bottom: 0.3rem; }
+    .instr-sub   { font-size: 0.73rem; color: var(--text-dim); line-height: 1.55; }
+
+    #formula-panel {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+      background: linear-gradient(160deg,
+        rgba(10,22,58,0.96) 0%, rgba(6,14,38,0.98) 100%);
+      backdrop-filter: blur(50px) saturate(200%);
+      -webkit-backdrop-filter: blur(50px) saturate(200%);
+      border-top: 1px solid rgba(74,158,255,0.22);
+      border-radius: 24px 24px 0 0;
+      box-shadow: 0 -1px 0 rgba(74,158,255,0.10),
+                  inset 0 1px 0 rgba(255,255,255,0.05);
+      padding-bottom: calc(var(--safe-bottom) + 1.5rem);
+      transform: translateY(100%);
+      transition: transform 0.46s cubic-bezier(0.34, 1.56, 0.64, 1);
+      max-height: 78vh; overflow-y: auto;
+    }
+    #formula-panel.open { transform: translateY(0); }
+
+    .panel-handle {
+      width: 36px; height: 4px; background: rgba(255,255,255,0.18);
+      border-radius: 2px; margin: 1.1rem auto 1.25rem;
+    }
+    .panel-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 0 1.5rem; margin-bottom: 1.1rem;
+    }
+    .panel-meta { flex: 1; }
+    #p-materia {
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--blue); margin-bottom: 0.28rem;
+    }
+    #p-titolo {
+      font-size: 1.12rem; font-weight: 700; color: #fff;
+      letter-spacing: -0.02em; line-height: 1.2;
+    }
+    .btn-close {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.13);
+      color: rgba(255,255,255,0.72); font-size: 1.1rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-left: 0.75rem; margin-top: 0.15rem;
+      font-family: 'Inter', sans-serif;
+      transition: background 0.18s;
+    }
+    .btn-close:active { background: rgba(255,255,255,0.25); }
+
+    .formula-display {
+      margin: 0 1.5rem 1.1rem;
+      background: rgba(74,158,255,0.10);
+      border: 1.5px solid rgba(74,158,255,0.38);
+      border-radius: 16px; padding: 1rem 1.5rem; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .formula-display::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg,
+        rgba(74,158,255,0.04) 0%,
+        rgba(74,158,255,0.10) 50%,
+        rgba(74,158,255,0.04) 100%);
+      pointer-events: none;
+    }
+    #p-formula {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 1.55rem; font-weight: 400; color: #fff;
+      letter-spacing: 0.05em; position: relative; z-index: 1;
+    }
+    #p-oggetto {
+      font-size: 0.6rem; font-weight: 600;
+      color: rgba(74,158,255,0.72);
+      letter-spacing: 0.10em; text-transform: uppercase;
+      margin-top: 0.45rem; position: relative; z-index: 1;
+    }
+    #p-body {
+      padding: 0 1.5rem; font-size: 0.83rem;
+      color: rgba(255,255,255,0.62); line-height: 1.72; margin-bottom: 1rem;
+    }
+    #p-vars {
+      padding: 0 1.5rem; margin-bottom: 1rem;
+      display: flex; flex-direction: column; gap: 0.48rem;
+    }
+    .var-row { display: flex; align-items: baseline; gap: 0.75rem; }
+    .var-sym {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 1rem; font-weight: 400; color: var(--blue);
+      width: 54px; flex-shrink: 0; text-align: center;
+    }
+    .var-desc { font-size: 0.79rem; color: rgba(255,255,255,0.50); line-height: 1.45; }
+
+    #p-conn-box {
+      margin: 0 1.5rem;
+      padding: 0.85rem 1rem;
+      background: rgba(74,158,255,0.06);
+      border: 1px solid rgba(74,158,255,0.18);
+      border-radius: 12px;
+      display: flex; gap: 0.65rem; align-items: flex-start;
+    }
+    .conn-icon { font-size: 0.88rem; flex-shrink: 0; margin-top: 0.05rem; }
+    #p-conn { font-size: 0.74rem; color: rgba(255,255,255,0.46); line-height: 1.62; }
+
+    #p-tags {
+      padding: 0.85rem 1.5rem 0;
+      display: flex; gap: 0.45rem; flex-wrap: wrap;
+    }
+    .tag {
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.10em;
+      text-transform: uppercase; border-radius: 20px; padding: 0.28rem 0.75rem;
+    }
+    .tag-math { color: #93C5FD; background: rgba(74,158,255,0.12);  border: 1px solid rgba(74,158,255,0.25); }
+    .tag-phys { color: #6EE7B7; background: rgba(16,185,129,0.10); border: 1px solid rgba(16,185,129,0.22); }
+  </style>
+</head>
+
+<body>
+
+  <video id="video" autoplay playsinline muted
+    style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;">
+  </video>
+
+  <div id="vignette"></div>
+
+  <div id="cam-error" style="display:none;position:fixed;inset:0;z-index:5;
+    background:#060d1f;flex-direction:column;align-items:center;
+    justify-content:center;gap:1rem;text-align:center;padding:2rem;color:#fff;">
+    <div style="font-size:3rem;">📷</div>
+    <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:0.25rem;">
+      Accesso fotocamera negato</h3>
+    <p style="font-size:0.8rem;color:rgba(255,255,255,0.5);line-height:1.65;max-width:280px;">
+      Vai in Impostazioni → Safari (o Chrome) → Fotocamera<br>
+      e consenti l'accesso per questo sito. Poi ricarica la pagina.
+    </p>
+  </div>
+
+  <div class="ar-float" id="fl-lampadario"
+    style="position:fixed;top:17%;left:50%;transform:translateX(-50%);">
+    <div class="ar-float-box">x² + y² + z² = r²</div>
+    <div class="ar-float-line"></div>
+    <div class="ar-float-dot"></div>
+  </div>
+
+  <div class="ar-float" id="fl-finestra"
+    style="position:fixed;top:25%;left:10%;">
+    <div class="ar-float-box">P = 2(b + h)</div>
+    <div class="ar-float-line"></div>
+    <div class="ar-float-dot"></div>
+  </div>
+
+  <div class="ar-float" id="fl-pavimento"
+    style="position:fixed;bottom:26%;left:50%;transform:translateX(-50%);">
+    <div class="ar-float-box">A = b × h</div>
+    <div class="ar-float-line"></div>
+    <div class="ar-float-dot"></div>
+  </div>
+
+  <div class="ar-float" id="fl-tavolo"
+    style="position:fixed;top:43%;right:5%;">
+    <div class="ar-float-box">p = F / A</div>
+    <div class="ar-float-line"></div>
+    <div class="ar-float-dot"></div>
+  </div>
+
+  <div class="ar-float" id="fl-porta"
+    style="position:fixed;top:32%;left:5%;">
+    <div class="ar-float-box">V = a × b × c</div>
+    <div class="ar-float-line"></div>
+    <div class="ar-float-dot"></div>
+  </div>
+
+  <div class="ar-float" id="fl-radiatore"
+    style="position:fixed;bottom:38%;right:5%;">
+    <div class="ar-float-box">Q = m · c · ΔT</div>
+    <div class="ar-float-line"></div>
+    <div class="ar-float-dot"></div>
+  </div>
+
+  <div class="topbar">
+    <a href="../index.html" class="btn-back">← Indietro</a>
+    <div class="topbar-center">
+      <div class="topbar-title">Spazio AR — Formule</div>
+      <div class="topbar-sub">Tocca un oggetto per la formula matematica</div>
+    </div>
+    <div class="demo-chip">Demo 01</div>
+  </div>
+
+  <div class="ar-pill">
+    <span class="ar-pill-dot"></span>
+    <span class="ar-pill-text">AR attivo · 6 oggetti rilevati</span>
+  </div>
+
+  <div style="position:fixed;bottom:calc(var(--safe-bottom) + 6.8rem);
+    left:0;right:0;z-index:100;
+    display:flex;justify-content:center;gap:0.45rem;
+    padding:0 0.75rem;flex-wrap:wrap;">
+    <button class="obj-pill" id="pill-lampadario" onclick="apriFormula('lampadario',this)">
+      <span style="font-size:1rem;">💡</span> Lampadario
+    </button>
+    <button class="obj-pill" id="pill-finestra" onclick="apriFormula('finestra',this)">
+      <span style="font-size:1rem;">🪟</span> Finestra
+    </button>
+    <button class="obj-pill" id="pill-pavimento" onclick="apriFormula('pavimento',this)">
+      <span style="font-size:1rem;">⬜</span> Pavimento
+    </button>
+    <button class="obj-pill" id="pill-tavolo" onclick="apriFormula('tavolo',this)">
+      <span style="font-size:1rem;">🪵</span> Tavolo
+    </button>
+    <button class="obj-pill" id="pill-porta" onclick="apriFormula('porta',this)">
+      <span style="font-size:1rem;">🚪</span> Porta
+    </button>
+    <button class="obj-pill" id="pill-radiatore" onclick="apriFormula('radiatore',this)">
+      <span style="font-size:1rem;">🌡️</span> Radiatore
+    </button>
+  </div>
+
+  <div id="instr-box">
+    <div class="instr-title">📐 Inquadra la stanza</div>
+    <div class="instr-sub">
+      Punta la fotocamera verso gli oggetti e tocca il pulsante
+      corrispondente per vedere la formula matematica che lo descrive.
+    </div>
+  </div>
+
+  <div id="formula-panel">
+    <div class="panel-handle"></div>
+    <div class="panel-header">
+      <div class="panel-meta">
+        <div id="p-materia"></div>
+        <div id="p-titolo"></div>
+      </div>
+      <button class="btn-close" onclick="chiudiPannello()">×</button>
+    </div>
+    <div class="formula-display">
+      <div id="p-formula"></div>
+      <div id="p-oggetto"></div>
+    </div>
+    <div id="p-body"></div>
+    <div id="p-vars"></div>
+    <div id="p-conn-box">
+      <span class="conn-icon">🔗</span>
+      <div id="p-conn"></div>
+    </div>
+    <div id="p-tags"></div>
+  </div>
+
+  <script>
+  'use strict';
+
+  const FORMULE = {
+    lampadario: {
+      materia: 'GEOMETRIA ANALITICA · 3D',
+      titolo:  'Equazione della sfera',
+      formula: 'x² + y² + z² = r²',
+      oggetto: 'Lampadario sferico · Stanza',
+      body:    "L'involucro sferico del lampadario è un esempio di sfera geometrica. " +
+               "Ogni punto sulla sua superficie è equidistante dal centro O di una " +
+               "distanza costante r chiamata raggio. L'equazione esprime questa " +
+               "proprietà nelle tre dimensioni dello spazio.",
+      vars: [
+        { sym: 'x, y, z', desc: 'coordinate di un punto sulla superficie della sfera [m]' },
+        { sym: 'r',        desc: 'raggio: distanza costante dal centro a ogni punto [m]' },
+        { sym: 'O',        desc: "centro della sfera, nell'origine degli assi (0, 0, 0)" }
+      ],
+      conn: 'Lampadario Ø 40 cm → r = 0,20 m. ' +
+            'Superficie totale = 4πr² ≈ 0,50 m². ' +
+            'In architettura usata per calcolare rivestimenti e dispersione luminosa.',
+      tags: [
+        { label: 'Geometria analitica', cls: 'math' },
+        { label: 'Spazio 3D',           cls: 'phys' }
+      ]
+    },
+    finestra: {
+      materia: 'GEOMETRIA PIANA',
+      titolo:  'Perimetro del rettangolo',
+      formula: 'P = 2(b + h)',
+      oggetto: 'Finestra rettangolare · Stanza',
+      body:    'Il perimetro è la lunghezza totale del bordo della finestra. ' +
+               'Corrisponde alla quantità di profilo metallico, guarnizione o ' +
+               'cornice necessaria per incorniciare completamente il telaio.',
+      vars: [
+        { sym: 'P', desc: 'perimetro totale: lunghezza del bordo esterno [m]' },
+        { sym: 'b', desc: 'base: larghezza orizzontale della finestra [m]' },
+        { sym: 'h', desc: 'altezza: dimensione verticale della finestra [m]' }
+      ],
+      conn: 'Finestra 120 × 140 cm: P = 2(1,20 + 1,40) = 5,20 m di telaio. ' +
+            'Un serramentista usa questa formula per ogni preventivo di infissi.',
+      tags: [
+        { label: 'Geometria piana', cls: 'math' }
+      ]
+    },
+    pavimento: {
+      materia: 'GEOMETRIA PIANA',
+      titolo:  'Area del rettangolo',
+      formula: 'A = b × h',
+      oggetto: 'Pavimento · Superficie della stanza',
+      body:    "L'area del pavimento esprime quanti m² occupa la stanza. " +
+               "Moltiplicando larghezza e lunghezza si ottiene la superficie da " +
+               "rivestire con parquet, piastrelle o tappeto.",
+      vars: [
+        { sym: 'A', desc: 'area: estensione della superficie [m²]' },
+        { sym: 'b', desc: 'base: larghezza della stanza in pianta [m]' },
+        { sym: 'h', desc: 'altezza: lunghezza della stanza in pianta [m]' }
+      ],
+      conn: 'Stanza 4,5 × 3,2 m → A = 14,4 m². ' +
+            'Servono ~15,8 m² di parquet (+10% scarto per tagli). ' +
+            'Usata ogni giorno da geometri e interior designer.',
+      tags: [
+        { label: 'Geometria piana', cls: 'math' }
+      ]
+    },
+    tavolo: {
+      materia: 'FISICA · MECCANICA DEI SOLIDI',
+      titolo:  'Pressione su una superficie',
+      formula: 'p = F / A',
+      oggetto: 'Tavolo · Distribuzione del peso',
+      body:    "Il tavolo trasmette al pavimento una forza uguale al suo peso. " +
+               "Questa forza si distribuisce sull'area di contatto delle gambe. " +
+               "Minore è l'area, maggiore è la pressione — ecco perché le gambe " +
+               "sottili segnano i pavimenti molli.",
+      vars: [
+        { sym: 'p', desc: 'pressione sul pavimento [Pa = N/m²]' },
+        { sym: 'F', desc: 'forza peso: F = m × g,  con g = 9,81 m/s² [N]' },
+        { sym: 'A', desc: 'area totale delle 4 gambe a contatto col pavimento [m²]' }
+      ],
+      conn: 'Tavolo 25 kg: F = 25 × 9,81 ≈ 245 N. ' +
+            '4 gambe da 4 cm² → A = 0,0016 m². ' +
+            'p ≈ 153.125 Pa (1,5 atm). La pressione atmosferica è 101.325 Pa.',
+      tags: [
+        { label: 'Meccanica', cls: 'phys' },
+        { label: 'Statica',   cls: 'math' }
+      ]
+    },
+    porta: {
+      materia: 'GEOMETRIA SOLIDA',
+      titolo:  'Volume del parallelepipedo',
+      formula: 'V = a × b × c',
+      oggetto: 'Porta · Volume del solido',
+      body:    "Una porta è un parallelepipedo rettangolo: un solido con tre " +
+               "coppie di facce rettangolari opposte e parallele. Il suo volume " +
+               "si ottiene moltiplicando le tre dimensioni. Serve per calcolare " +
+               "la quantità di materiale necessario per costruirla.",
+      vars: [
+        { sym: 'V', desc: 'volume del parallelepipedo [m³]' },
+        { sym: 'a', desc: 'larghezza della porta [m] — standard: 0,80–0,90 m' },
+        { sym: 'b', desc: 'altezza della porta [m] — standard: 2,10 m' },
+        { sym: 'c', desc: 'spessore della porta [m] — standard: 0,04–0,06 m' }
+      ],
+      conn: 'Porta 0,80 × 2,10 × 0,045 m → V = 0,0756 m³ di legno. ' +
+            'A 800 €/m³ il materiale costa ~60 €. ' +
+            'I falegnami usano questa formula per ogni preventivo.',
+      tags: [
+        { label: 'Geometria solida', cls: 'math' }
+      ]
+    },
+    radiatore: {
+      materia: 'FISICA · TERMODINAMICA',
+      titolo:  'Calore scambiato',
+      formula: 'Q = m · c · ΔT',
+      oggetto: 'Radiatore · Scambio termico',
+      body:    "Il radiatore scalda la stanza cedendo calore all'aria. " +
+               "La quantità di energia dipende dalla massa dell'acqua circolante, " +
+               "dalla sua capacità termica specifica e dalla differenza di " +
+               "temperatura tra entrata e uscita.",
+      vars: [
+        { sym: 'Q',  desc: 'calore ceduto o assorbito [J = Joule]' },
+        { sym: 'm',  desc: "massa dell'acqua nel circuito del radiatore [kg]" },
+        { sym: 'c',  desc: "calore specifico dell'acqua: 4186 J/(kg·°C)" },
+        { sym: 'ΔT', desc: 'variazione di temperatura: T_entrata − T_uscita [°C]' }
+      ],
+      conn: "3 kg d'acqua da 70°C a 50°C: Q = 3 × 4186 × 20 ≈ 251.160 J = 69,8 Wh. " +
+            'Questa energia riscalda ~15 m³ di aria di 5°C. ' +
+            'I termotecnici la usano per dimensionare gli impianti.',
+      tags: [
+        { label: 'Termodinamica', cls: 'phys' },
+        { label: 'Fisica',        cls: 'phys' }
+      ]
+    }
+  };
+
+  const video = document.getElementById('video');
+
+  async function startCamera() {
+    try {
+      const stream1 = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width:  { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      });
+      video.srcObject = stream1;
+      video.style.transform = 'none';
+      return;
+    } catch (err1) { /* tentativo 1 fallito */ }
+
+    try {
+      const stream2 = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+      video.srcObject = stream2;
+      video.style.transform = 'none';
+      return;
+    } catch (err2) { /* tentativo 2 fallito */ }
+
+    try {
+      const stream3 = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false
+      });
+      video.srcObject = stream3;
+      video.style.transform = 'none';
+      return;
+    } catch (err3) { /* tentativo 3 fallito */ }
+
+    document.getElementById('cam-error').style.display = 'flex';
+  }
+
+  startCamera();
+
+  let activeKey = null;
+
+  function apriFormula(key, btnEl) {
+    const d = FORMULE[key];
+    if (!d) return;
+
+    document.querySelectorAll('.obj-pill').forEach(p => p.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+
+    document.querySelectorAll('.ar-float').forEach(f => f.style.opacity = '0');
+    const floatEl = document.getElementById('fl-' + key);
+    if (floatEl) floatEl.style.opacity = '1';
+
+    document.getElementById('p-materia').textContent = d.materia;
+    document.getElementById('p-titolo').textContent  = d.titolo;
+    document.getElementById('p-formula').textContent = d.formula;
+    document.getElementById('p-oggetto').textContent = d.oggetto;
+    document.getElementById('p-body').textContent    = d.body;
+    document.getElementById('p-conn').textContent    = d.conn;
+
+    document.getElementById('p-vars').innerHTML = d.vars.map(v =>
+      `<div class="var-row">
+         <span class="var-sym">${v.sym}</span>
+         <span class="var-desc">${v.desc}</span>
+       </div>`
+    ).join('');
+
+    document.getElementById('p-tags').innerHTML = d.tags.map(t =>
+      `<span class="tag tag-${t.cls}">${t.label}</span>`
+    ).join('');
+
+    document.getElementById('formula-panel').classList.add('open');
+    document.getElementById('instr-box').classList.add('hidden');
+    activeKey = key;
+  }
+
+  function chiudiPannello() {
+    document.getElementById('formula-panel').classList.remove('open');
+    document.querySelectorAll('.obj-pill').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.ar-float').forEach(f => f.style.opacity = '0');
+    document.getElementById('instr-box').classList.remove('hidden');
+    activeKey = null;
+  }
+
+  video.addEventListener('click', () => {
+    if (activeKey !== null) chiudiPannello();
+  });
+  </script>
+
+</body>
+</html>
